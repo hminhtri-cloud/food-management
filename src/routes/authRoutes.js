@@ -7,7 +7,10 @@ const {
   changePassword,
 } = require("../controllers/authController");
 const authMiddleware = require("../middlewares/authMiddleware");
-const roleMiddleware = require("../middlewares/roleMiddleware");
+const {
+  forgotPassword,
+  resetPassword,
+} = require("../controllers/passwordResetController");
 
 const router = express.Router();
 
@@ -31,6 +34,8 @@ const router = express.Router();
  *         description: Thông tin người dùng hiện tại
  *       401:
  *         description: Chưa đăng nhập hoặc không có quyền
+ *       403:
+ *         description: Tài khoản không thuộc cổng user
  */
 router.get("/me", authMiddleware, (req, res) => {
   res.json({
@@ -38,31 +43,6 @@ router.get("/me", authMiddleware, (req, res) => {
     user: req.user,
   });
 });
-
-/**
- * @swagger
- * /api/auth/admin-test:
- *   get:
- *     summary: Kiểm tra quyền ADMIN
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Bạn có quyền ADMIN
- *       401:
- *         description: Chưa đăng nhập hoặc không có quyền
- */
-router.get(
-  "/admin-test",
-  authMiddleware,
-  roleMiddleware("ADMIN"),
-  (req, res) => {
-    res.json({
-      message: "Bạn có quyền ADMIN",
-    });
-  },
-);
 
 /**
  * @swagger
@@ -105,7 +85,7 @@ router.post("/register", register);
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Đăng nhập
+ *     summary: Đăng nhập cổng user (chỉ tài khoản USER)
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -114,6 +94,7 @@ router.post("/register", register);
  *           schema:
  *             type: object
  *             required:
+ *               - identifier
  *               - password
  *             properties:
  *               identifier:
@@ -130,6 +111,8 @@ router.post("/register", register);
  *         description: Dữ liệu không hợp lệ
  *       401:
  *         description: Email hoặc mật khẩu không đúng
+ *       403:
+ *         description: Tài khoản không hoạt động hoặc không phải USER
  */
 router.post("/login", login);
 
@@ -158,6 +141,8 @@ router.post("/login", login);
  *         description: Refresh token là bắt buộc
  *       401:
  *         description: Refresh token không hợp lệ hoặc đã hết hạn
+ *       403:
+ *         description: Token không thuộc tài khoản USER
  */
 router.post("/refresh", refreshAccessToken);
 
@@ -221,4 +206,70 @@ router.post("/logout", logout);
  */
 router.put("/change-password", authMiddleware, changePassword);
 
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Gửi OTP quên mật khẩu qua email
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: your-email@gmail.com
+ *     responses:
+ *       200:
+ *         description: Đã tiếp nhận yêu cầu
+ *       400:
+ *         description: Chưa nhập email
+ *       500:
+ *         description: Không thể gửi OTP
+ */
+router.post("/forgot-password", forgotPassword);
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Đặt lại mật khẩu bằng OTP
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *               - newPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: your-email@gmail.com
+ *               otp:
+ *                 type: string
+ *                 pattern: '^\d{6}$'
+ *                 example: "123456"
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 example: "new_password"
+ *     responses:
+ *       200:
+ *         description: Đặt lại mật khẩu thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ hoặc OTP sai, hết hạn, đã dùng
+ *       500:
+ *         description: Không thể đặt lại mật khẩu
+ */
+router.post("/reset-password", resetPassword);
 module.exports = router;

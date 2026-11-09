@@ -2,7 +2,6 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
 const crypto = require("crypto");
-const roleMiddleware = require("../middlewares/roleMiddleware");
 
 const register = async (req, res) => {
   try {
@@ -93,6 +92,12 @@ const login = async (req, res) => {
       });
     }
 
+    if (req.app.locals.requiredRole && user.role !== req.app.locals.requiredRole) {
+      return res.status(403).json({
+        message: "Tài khoản không có quyền đăng nhập cổng này",
+      });
+    }
+
     const accessToken = jwt.sign(
       {
         userId: user.id,
@@ -172,6 +177,12 @@ const refreshAccessToken = async (req, res) => {
 
     const user = result.rows[0];
 
+    if (req.app.locals.requiredRole && user.role !== req.app.locals.requiredRole) {
+      return res.status(403).json({
+        message: "Refresh token không thuộc tài khoản được phép dùng cổng này",
+      });
+    }
+
     const accessToken = jwt.sign(
       {
         userId: user.user_id,
@@ -211,11 +222,14 @@ const logout = async (req, res) => {
       .digest("hex");
 
     await pool.query(
-      `UPDATE refresh_tokens
+      `UPDATE refresh_tokens rt
        SET revoked_at = NOW()
-       WHERE token_hash = $1
-         AND revoked_at IS NULL`,
-      [tokenHash],
+       FROM users u
+       WHERE rt.user_id = u.id
+         AND rt.token_hash = $1
+         AND rt.revoked_at IS NULL
+         AND ($2::text IS NULL OR u.role = $2)`,
+      [tokenHash, req.app.locals.requiredRole || null],
     );
 
     return res.json({

@@ -19,3 +19,6 @@ CREATE TABLE users (
     CONSTRAINT users_contact_check
         CHECK (email IS NOT NULL OR phone IS NOT NULL)
 );
+
+CREATE UNIQUE INDEX users_email_lower_unique
+    ON users (LOWER(email)) WHERE email IS NOT NULL;

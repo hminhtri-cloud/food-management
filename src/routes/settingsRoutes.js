@@ -3,6 +3,8 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const {
   getProfile,
   updateProfile,
+  updateEmail,
+  updatePhone,
   deleteAccount,
 } = require("../controllers/settingsController");
 
@@ -50,12 +52,12 @@ router.get("/profile", authMiddleware, getProfile);
  *               fullName:
  *                 type: string
  *                 description: Tên đầy đủ của người dùng
- *               phone:
+ *               avatarUrl:
  *                 type: string
- *                 description: Số điện thoại của người dùng
+ *                 description: URL ảnh đại diện
  *             example:
  *               fullName: "Nguyen Van A"
- *               phone: "0123456789"
+ *               avatarUrl: "https://example.com/avatar.jpg"
  *     responses:
  *       200:
  *         description: Cập nhật thông tin hồ sơ thành công
@@ -67,6 +69,87 @@ router.get("/profile", authMiddleware, getProfile);
  *         description: Không tìm thấy người dùng
  */
 router.put("/profile", authMiddleware, updateProfile);
+
+/**
+ * @swagger
+ * /api/settings/email:
+ *   put:
+ *     summary: Đổi email bằng mật khẩu hiện tại
+ *     description: Email được trim và chuyển về chữ thường, không được trùng tài khoản khác. OTP quên mật khẩu cũ bị vô hiệu hóa. Chưa xác minh email mới qua OTP. Dùng email mới khi đăng nhập hoặc quên mật khẩu.
+ *     tags: [Settings]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, currentPassword]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 maxLength: 255
+ *                 example: new-email@gmail.com
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Đổi email thành công, trả thông tin user đã cập nhật
+ *       400:
+ *         description: Thiếu mật khẩu hoặc email không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập, token không hợp lệ hoặc sai mật khẩu
+ *       403:
+ *         description: Tài khoản không thuộc cổng user
+ *       404:
+ *         description: Không tìm thấy tài khoản đang hoạt động
+ *       409:
+ *         description: Email đã được sử dụng
+ *       500:
+ *         description: Lỗi máy chủ
+ * /api/settings/phone:
+ *   put:
+ *     summary: Đổi số điện thoại bằng mật khẩu hiện tại
+ *     description: Nhận chuỗi từ 8 đến 15 chữ số, có thể bắt đầu bằng dấu +. Giữ số 0 đầu, không tự đổi 0 thành +84. Chưa xác minh số mới bằng SMS OTP. Dùng đúng định dạng đã lưu khi đăng nhập.
+ *     tags: [Settings]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [phone, currentPassword]
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 pattern: '^\+?[0-9]{8,15}$'
+ *                 example: "0901234567"
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Đổi số điện thoại thành công, trả thông tin user đã cập nhật
+ *       400:
+ *         description: Thiếu mật khẩu hoặc số điện thoại không hợp lệ
+ *       401:
+ *         description: Chưa đăng nhập, token không hợp lệ hoặc sai mật khẩu
+ *       403:
+ *         description: Tài khoản không thuộc cổng user
+ *       404:
+ *         description: Không tìm thấy tài khoản đang hoạt động
+ *       409:
+ *         description: Số điện thoại đã được sử dụng
+ *       500:
+ *         description: Lỗi máy chủ
+ */
+router.put("/email", authMiddleware, updateEmail);
+router.put("/phone", authMiddleware, updatePhone);
 
 /** * @swagger
  * /api/settings/delete-account:

@@ -20,7 +20,7 @@ const register = async (req, res) => {
     }
 
     const existingUser = await pool.query(
-      "SELECT id FROM users WHERE email = $1 OR phone = $2",
+      "SELECT id FROM users WHERE LOWER(email) = LOWER($1) OR phone = $2",
       [email || null, phone || null],
     );
 
@@ -44,6 +44,9 @@ const register = async (req, res) => {
       user: result.rows[0],
     });
   } catch (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({ message: "Email hoặc số điện thoại đã được sử dụng" });
+    }
     console.error(error.message);
 
     return res.status(500).json({
@@ -63,7 +66,7 @@ const login = async (req, res) => {
     }
 
     const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1 OR phone = $1",
+      "SELECT * FROM users WHERE LOWER(email) = LOWER($1) OR phone = $1",
       [identifier],
     );
 

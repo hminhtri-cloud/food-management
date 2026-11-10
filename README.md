@@ -142,6 +142,59 @@ Danh sách công thức, gợi ý và yêu thích hỗ trợ:
 - Danh sách thường và yêu thích vẫn hiển thị món kiêng, kèm `matchesPreferences=false`
   và `ingredients[].avoided=true`. Chỉ màn hình gợi ý loại các món này.
 
+## Đổi email và số điện thoại
+
+Hai API nằm trên cổng user, yêu cầu Bearer access token và mật khẩu hiện tại:
+
+```http
+PUT /api/settings/email
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+
+{"email":"new-email@gmail.com","currentPassword":"mat-khau-hien-tai"}
+```
+
+```http
+PUT /api/settings/phone
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+
+{"phone":"0901234567","currentPassword":"mat-khau-hien-tai"}
+```
+
+- Trả `200` kèm `user` mới; không trả password hash.
+- `400`: thiếu/sai định dạng dữ liệu; `401`: sai mật khẩu hoặc chưa đăng nhập;
+  `409`: email/số điện thoại đã được tài khoản khác sử dụng.
+- Email trim, chuyển về chữ thường; kiểm tra trùng không phân biệt hoa/thường.
+  API đăng ký và đăng nhập cũng kiểm tra email không phân biệt hoa/thường.
+- Số điện thoại là chuỗi 8–15 chữ số, cho phép dấu `+` ở đầu; giữ số 0 đầu.
+  Chưa tự chuẩn hóa `090...` thành `+8490...`; đăng nhập bằng đúng định dạng đã lưu.
+- Chỉ đổi tài khoản trong JWT; `userId` gửi trong body không chọn được tài khoản khác.
+- Không cho xóa email/số điện thoại bằng null hoặc chuỗi rỗng qua hai API này.
+- Khi đổi email, các OTP quên mật khẩu cũ được vô hiệu hóa trong cùng transaction.
+- Mật khẩu và phiên đăng nhập hiện tại được giữ nguyên. Liên hệ mới thay cho liên hệ cũ
+  khi đăng nhập; email mới nhận các OTP quên mật khẩu tiếp theo.
+- Bản hiện tại xác nhận bằng mật khẩu, chưa gửi OTP xác minh liên hệ mới.
+- PUT `/api/settings/profile` chỉ chỉnh tên/avatar, không đổi email/phone.
+
+### Cập nhật database hiện có và EC2
+
+Sau khi code mới đã được đưa lên GitHub, trên EC2:
+
+```bash
+cd ~/food-management
+git pull --ff-only
+psql -h 127.0.0.1 -U food_app -d food_management -W -v ON_ERROR_STOP=1 -f database/user_contacts.sql
+pm2 restart food-user --update-env
+pm2 restart food-admin --update-env
+```
+
+Migration `user_contacts.sql` thêm unique index cho `LOWER(email)` và chạy lại được.
+Nếu database có email trùng chỉ khác hoa/thường, migration sẽ báo lỗi và không xóa dữ liệu;
+cần xử lý các tài khoản trùng trước khi triển khai tiếp. Database mới chạy `schema.sql`
+đã có index này. Không chạy lại `schema.sql` trên database đang dùng.
+Không có dependency mới cần cài cho thay đổi này.
+
 ## Kiểm thử
 
 ```bash
@@ -152,3 +205,6 @@ Integration tests dùng database trong `.env`, mở server ở port ngẫu nhiê
 tạo tài khoản/công thức riêng và xóa dữ liệu test khi kết thúc. Cần chạy schema và seed trước.
 Kiểm tra xác thực, phân trang, dữ liệu sai, so khớp/hạn dùng, vùng mặc định,
 kiêng/dị ứng, yêu thích không trùng và cách ly dữ liệu giữa hai người dùng.
+Các bài test đổi liên hệ còn kiểm tra mật khẩu, validation, đăng nhập bằng liên hệ mới,
+OTP cũ bị vô hiệu hóa và hai request đổi cùng email đồng thời. Database test hiện có
+cũng cần chạy `database/user_contacts.sql` trước.

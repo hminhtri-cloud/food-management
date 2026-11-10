@@ -21,6 +21,18 @@ app.locals.requiredRole = "USER";
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+
+  res.on("finish", () => {
+    console.log(
+      `${new Date().toISOString()} ${req.method} ${req.path} ` +
+        `${res.statusCode} ${Date.now() - startedAt}ms`,
+    );
+  });
+
+  next();
+});
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/settings", settingsRoutes);
@@ -30,7 +42,9 @@ app.use("/api/fridge", fridgeRoutes);
 app.use("/api/recipes", recipeRoutes);
 app.use("/api/regions", regionRoutes);
 app.use("/api/favorites", favoriteRoutes);
-app.use("/api", (req, res) => res.status(404).json({ message: "API không tồn tại trên cổng user" }));
+app.use("/api", (req, res) =>
+  res.status(404).json({ message: "API không tồn tại trên cổng user" }),
+);
 app.use("/", swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerSpec));
 
 if (require.main === module) {

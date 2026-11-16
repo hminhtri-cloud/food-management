@@ -9,6 +9,7 @@ const recipeRoutes = require("./src/routes/recipeRoutes");
 const regionRoutes = require("./src/routes/regionRoutes");
 const favoriteRoutes = require("./src/routes/favoriteRoutes");
 const healthRoutes = require("./src/routes/healthRoutes");
+const workflowRoutes = require("./src/routes/workflowRoutes");
 
 //swagger
 const swaggerUi = require("swagger-ui-express");
@@ -35,6 +36,7 @@ app.use((req, res, next) => {
 });
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api", workflowRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/preferences", preferencesRoutes);
 app.use("/api/ingredients", ingredientRoutes);
@@ -46,6 +48,13 @@ app.use("/api", (req, res) =>
   res.status(404).json({ message: "API không tồn tại trên cổng user" }),
 );
 app.use("/", swaggerUi.serveFiles(swaggerSpec), swaggerUi.setup(swaggerSpec));
+app.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  if (error.type === "entity.parse.failed") return res.status(400).json({ message: "Body JSON không hợp lệ" });
+  if (error.type === "entity.too.large") return res.status(413).json({ message: "Body vượt giới hạn kích thước" });
+  console.error(error);
+  return res.status(500).json({ message: "Lỗi máy chủ" });
+});
 
 if (require.main === module) {
   app.listen(PORT, () => {

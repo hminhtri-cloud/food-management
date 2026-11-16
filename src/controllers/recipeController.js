@@ -1,5 +1,6 @@
 const pool = require("../config/database");
 const { positiveId, parseFilters, paginate, getContext, loadRecipes } = require("../services/recipeService");
+const { recordRecipeEvents } = require("../services/analyticsService");
 
 const handleError = (res, error) => {
   console.error(error.message);
@@ -30,7 +31,9 @@ const getRecommendations = async (req, res) => {
         || b.matchPercentage - a.matchPercentage
         || b.expiringIngredientCount - a.expiringIngredientCount
         || a.id - b.id);
-    return res.json(paginate(recipes, filters));
+    const result = paginate(recipes, filters);
+    await recordRecipeEvents(req.user.userId, result.recipes.map((recipe) => recipe.id), "RECOMMENDATION");
+    return res.json(result);
   } catch (error) { return handleError(res, error); }
 };
 
@@ -40,6 +43,7 @@ const getRecipe = async (req, res) => {
     if (!id) return res.status(400).json({ message: "ID công thức không hợp lệ" });
     const [recipe] = await loadRecipes(req.user.userId, { id });
     if (!recipe) return res.status(404).json({ message: "Không tìm thấy công thức" });
+    await recordRecipeEvents(req.user.userId, [id], "VIEW");
     return res.json({ recipe });
   } catch (error) { return handleError(res, error); }
 };

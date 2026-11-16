@@ -1,3 +1,4 @@
 const createSwaggerSpec = require("./createSwaggerSpec");
+const addWorkflowSpec = require("./workflowSpec");
 
-module.exports = createSwaggerSpec("Food Management - User API", ["*.js"]);
+module.exports = addWorkflowSpec(createSwaggerSpec("Food Management - User API", ["*.js"]));
